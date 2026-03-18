@@ -1,0 +1,32 @@
+# =========================
+# ROOT
+# =========================
+venv/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# =========================
+# BACKEND
+# =========================
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# Si quieres mantener la carpeta uploads pero no subir archivos:
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# =========================
+# FRONTEND
+# =========================
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/.env
+
+# Opcional
+frontend/out/
