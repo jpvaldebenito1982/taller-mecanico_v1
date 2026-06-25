@@ -52,7 +52,7 @@ type QuoteApiResponse = {
   total: number | string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return "";

@@ -128,7 +128,7 @@ type OrderPartLine = {
   unitPrice: number;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 const getStatusLabel = (status: OrderStatus) => status;
 const getPriorityLabel = (priority: OrderPriority) => priority;

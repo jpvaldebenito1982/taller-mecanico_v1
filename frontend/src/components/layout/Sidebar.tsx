@@ -11,7 +11,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-white shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-900">
+    <aside className="hidden w-64 shrink-0 flex-col border-r bg-white shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-900 md:flex">
       <div className="p-4 text-xl font-bold border-b border-slate-200 text-slate-900 dark:border-slate-800 dark:text-slate-50">
         Taller Mecánico
       </div>

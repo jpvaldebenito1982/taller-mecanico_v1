@@ -29,7 +29,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 UPLOAD_DIR = "uploads/orders"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://localhost:8001"
 
 
 def build_vehicle_name(vehicle) -> str:

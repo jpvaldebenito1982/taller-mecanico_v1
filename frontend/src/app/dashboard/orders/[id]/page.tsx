@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Package,
   Printer,
+  Smartphone,
 } from "lucide-react";
 
 type OrderStatus =
@@ -94,7 +95,7 @@ type OrderPartLine = {
   unitPrice: number;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 // Placeholder hasta conectar módulos reales
 const TIMELINE_PLACEHOLDER: OrderTimelineEvent[] = [];
@@ -550,6 +551,18 @@ export default function OrderDetailPage() {
           >
             <Printer className="h-4 w-4" />
             Imprimir OT (PDF)
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10"
+          >
+            <Link href={`/dashboard/mechanic/orders/${order.id}`}>
+              <Smartphone className="h-4 w-4" />
+              Modo mecanico
+            </Link>
           </Button>
 
           <Button variant="outline" size="sm" asChild className="gap-2">

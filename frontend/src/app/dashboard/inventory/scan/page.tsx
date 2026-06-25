@@ -7,7 +7,7 @@ import { ArrowLeft, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BarcodeScanner from "@/components/inventory/barcode-scanner";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 type InventoryApiItem = {
   id: string;

@@ -1,7 +1,8 @@
+from datetime import date as DateType, datetime as DateTime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
 from uuid import UUID
-from datetime import date as DateType, datetime as DateTime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -16,6 +17,13 @@ class BillingStatus(str, Enum):
     pendiente = "Pendiente"
     pagada = "Pagada"
     anulada = "Anulada"
+
+
+class LibreDTEStatus(str, Enum):
+    not_sent = "No emitido"
+    pending = "Pendiente"
+    certified = "Emitido"
+    error = "Error"
 
 
 class BillingBase(BaseModel):
@@ -124,6 +132,13 @@ class BillingListItem(BaseModel):
     payment_method: str
     status: BillingStatus
     observations: str | None = None
+    libredte_status: str | None = None
+    libredte_message: str | None = None
+    libredte_document_type_code: int | None = None
+    libredte_folio: int | None = None
+    libredte_codigo_generacion: str | None = None
+    libredte_pdf_path: str | None = None
+    libredte_xml_path: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,5 +147,24 @@ class BillingResponse(BillingBase):
     id: UUID
     created_at: DateTime
     updated_at: DateTime
+    libredte_status: str | None = None
+    libredte_message: str | None = None
+    libredte_document_type_code: int | None = None
+    libredte_folio: int | None = None
+    libredte_codigo_generacion: str | None = None
+    libredte_pdf_path: str | None = None
+    libredte_xml_path: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BillingEmitResponse(BaseModel):
+    billing: BillingResponse
+    certification_mode: bool
+    temporary_response: dict[str, Any]
+    generated_response: dict[str, Any]
+
+
+class BillingStatusSyncResponse(BaseModel):
+    billing: BillingResponse
+    remote_status: dict[str, Any]

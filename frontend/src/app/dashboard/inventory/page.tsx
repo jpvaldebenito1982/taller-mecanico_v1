@@ -55,7 +55,7 @@ type InventoryApiItem = {
   stock_status?: StockStatus;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
   if (item.stock <= 0) return "Sin stock";

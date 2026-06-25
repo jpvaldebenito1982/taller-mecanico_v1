@@ -11,15 +11,18 @@ import {
   Trash2,
   FileText,
   Loader2,
+  Send,
+  RefreshCw,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 
 type InvoiceStatus = "Pendiente" | "Pagada" | "Anulada";
@@ -28,27 +31,35 @@ type Invoice = {
   id: string;
   number: string;
   date: string;
+  documentType: string;
   customer: string;
   orderId?: string;
   orderCode?: string;
   total: number;
   paymentMethod: string;
   status: InvoiceStatus;
+  libredteStatus?: string | null;
+  libredteMessage?: string | null;
+  libredteFolio?: number | null;
 };
 
 type BillingApiItem = {
   id: string;
   number: string;
   date: string;
+  document_type: string;
   customer: string;
   order_id?: string | null;
   order_code?: string | null;
   total: number | string;
   payment_method: string;
   status: InvoiceStatus;
+  libredte_status?: string | null;
+  libredte_message?: string | null;
+  libredte_folio?: number | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8001";
 
 const formatCurrency = (value: number) =>
   value.toLocaleString("es-CL", {
@@ -61,7 +72,6 @@ const formatDate = (value: string) => {
   if (!value) return "-";
 
   const parsed = new Date(value);
-
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
@@ -82,23 +92,42 @@ const getStatusClasses = (status: InvoiceStatus) => {
   }
 };
 
+const getLibreDTEClasses = (status?: string | null) => {
+  switch (status) {
+    case "Emitido":
+      return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
+    case "Pendiente":
+      return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
+    case "Error":
+      return "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300";
+    default:
+      return "bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300";
+  }
+};
+
 const normalizeInvoice = (item: BillingApiItem): Invoice => ({
   id: String(item.id),
   number: item.number ?? "-",
   date: formatDate(item.date),
+  documentType: item.document_type ?? "Boleta",
   customer: item.customer ?? "Sin cliente",
   orderId: item.order_id ?? undefined,
   orderCode: item.order_code ?? undefined,
   total: Number(item.total ?? 0),
   paymentMethod: item.payment_method ?? "-",
   status: item.status ?? "Pendiente",
+  libredteStatus: item.libredte_status ?? "No emitido",
+  libredteMessage: item.libredte_message ?? null,
+  libredteFolio: item.libredte_folio ?? null,
 });
 
 export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -121,7 +150,7 @@ export default function BillingPage() {
       });
 
       if (!response.ok) {
-        throw new Error("No se pudo obtener la facturación.");
+        throw new Error("No se pudo obtener la facturacion.");
       }
 
       const data: BillingApiItem[] = await response.json();
@@ -143,7 +172,7 @@ export default function BillingPage() {
     return invoices.filter((inv) => {
       const matchesSearch =
         search.trim().length === 0 ||
-        [inv.number, inv.customer, inv.orderCode]
+        [inv.number, inv.customer, inv.orderCode, inv.documentType]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -186,6 +215,74 @@ export default function BillingPage() {
     }
   };
 
+  const handleEmit = async (invoice: Invoice) => {
+    try {
+      setActionError(null);
+      setActionLoadingId(invoice.id);
+
+      const response = await fetch(
+        `${API_URL}/api/billing/${invoice.id}/libredte/emit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.detail || "No se pudo emitir en LibreDTE.");
+      }
+
+      await fetchBilling();
+    } catch (err) {
+      console.error(err);
+      setActionError(
+        err instanceof Error ? err.message : "No se pudo emitir en LibreDTE."
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleSyncStatus = async (invoice: Invoice) => {
+    try {
+      setActionError(null);
+      setActionLoadingId(invoice.id);
+
+      const response = await fetch(
+        `${API_URL}/api/billing/${invoice.id}/libredte/status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.detail || "No se pudo sincronizar el estado.");
+      }
+
+      await fetchBilling();
+    } catch (err) {
+      console.error(err);
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo sincronizar el estado."
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenPdf = (invoice: Invoice) => {
+    window.open(`${API_URL}/api/billing/${invoice.id}/libredte/pdf`, "_blank");
+  };
+
   const handleCloseDialog = (open: boolean) => {
     if (!open && !deleteLoading) {
       setInvoiceToDelete(null);
@@ -197,21 +294,28 @@ export default function BillingPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Facturación
+            Facturacion
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Registra y controla las facturas y boletas emitidas por el taller
-            Díaz & Díaz.
+            Registra documentos internos y emitelos en LibreDTE usando el
+            ambiente de certificacion.
           </p>
         </div>
 
         <Button asChild className="mt-2 md:mt-0">
           <Link href="/dashboard/billing/new" className="inline-flex gap-2">
             <Plus className="h-4 w-4" />
-            Nueva factura/boleta
+            Nuevo documento
           </Link>
         </Button>
       </div>
+
+      {actionError && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-500/10 dark:text-red-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm border-slate-200 dark:bg-slate-900 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -244,7 +348,7 @@ export default function BillingPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full md:w-72 rounded-lg border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-              placeholder="Buscar por N° documento, cliente u orden..."
+              placeholder="Buscar por documento, cliente u orden..."
             />
           </div>
         </div>
@@ -278,13 +382,13 @@ export default function BillingPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/80">
                 <tr className="text-left text-xs text-slate-500 dark:text-slate-300">
-                  <th className="px-4 py-2 font-medium">N° Documento</th>
+                  <th className="px-4 py-2 font-medium">Documento</th>
                   <th className="px-4 py-2 font-medium">Fecha</th>
                   <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-4 py-2 font-medium">Orden asociada</th>
-                  <th className="px-4 py-2 font-medium">Método de pago</th>
+                  <th className="px-4 py-2 font-medium">Orden</th>
                   <th className="px-4 py-2 font-medium">Total</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
+                  <th className="px-4 py-2 font-medium">Estado interno</th>
+                  <th className="px-4 py-2 font-medium">Estado LibreDTE</th>
                   <th className="px-4 py-2 font-medium text-right">
                     Acciones
                   </th>
@@ -301,81 +405,145 @@ export default function BillingPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredInvoices.map((inv, idx) => (
-                    <tr
-                      key={inv.id}
-                      className={`border-t text-xs border-slate-100 dark:border-slate-800 ${
-                        idx % 2 === 0
-                          ? "bg-white dark:bg-slate-900"
-                          : "bg-slate-50/70 dark:bg-slate-900/80"
-                      }`}
-                    >
-                      <td className="px-4 py-2 font-semibold text-slate-900 dark:text-slate-50">
-                        {inv.number}
-                      </td>
-                      <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
-                        {inv.date}
-                      </td>
-                      <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
-                        {inv.customer}
-                      </td>
-                      <td className="px-4 py-2">
-                        {inv.orderId && inv.orderCode ? (
-                          <Link
-                            href={`/dashboard/orders/${inv.orderId}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-500/25"
-                          >
-                            <FileText className="h-3 w-3" />
-                            {inv.orderCode}
-                          </Link>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                            Sin orden
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-slate-700 dark:text-slate-200">
-                        {inv.paymentMethod}
-                      </td>
-                      <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
-                        {formatCurrency(inv.total)}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusClasses(
-                            inv.status
-                          )}`}
-                        >
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex justify-end gap-1.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                            className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-50 dark:hover:bg-slate-700"
-                          >
-                            <Link href={`/dashboard/billing/${inv.id}/edit`}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Editar</span>
-                            </Link>
-                          </Button>
+                  filteredInvoices.map((inv, idx) => {
+                    const isBusy = actionLoadingId === inv.id;
+                    const canEmit =
+                      inv.documentType !== "Recibo" &&
+                      inv.libredteStatus !== "Emitido";
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setInvoiceToDelete(inv)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                    return (
+                      <tr
+                        key={inv.id}
+                        className={`border-t text-xs border-slate-100 dark:border-slate-800 ${
+                          idx % 2 === 0
+                            ? "bg-white dark:bg-slate-900"
+                            : "bg-slate-50/70 dark:bg-slate-900/80"
+                        }`}
+                      >
+                        <td className="px-4 py-2 text-slate-900 dark:text-slate-50">
+                          <div className="font-semibold">{inv.number}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {inv.documentType}
+                            {inv.libredteFolio ? ` · Folio ${inv.libredteFolio}` : ""}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
+                          {inv.date}
+                        </td>
+                        <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
+                          {inv.customer}
+                        </td>
+                        <td className="px-4 py-2">
+                          {inv.orderId && inv.orderCode ? (
+                            <Link
+                              href={`/dashboard/orders/${inv.orderId}`}
+                              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-500/25"
+                            >
+                              <FileText className="h-3 w-3" />
+                              {inv.orderCode}
+                            </Link>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                              Sin orden
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-slate-800 dark:text-slate-100">
+                          <div>{formatCurrency(inv.total)}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {inv.paymentMethod}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusClasses(
+                              inv.status
+                            )}`}
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="space-y-1">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${getLibreDTEClasses(
+                                inv.libredteStatus
+                              )}`}
+                            >
+                              {inv.libredteStatus ?? "No emitido"}
+                            </span>
+                            {inv.libredteMessage && (
+                              <div className="max-w-[220px] text-[10px] text-slate-500 dark:text-slate-400">
+                                {inv.libredteMessage}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex justify-end gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-50 dark:hover:bg-slate-700"
+                            >
+                              <Link href={`/dashboard/billing/${inv.id}/edit`}>
+                                <Pencil className="h-4 w-4" />
+                                <span className="sr-only">Editar</span>
+                              </Link>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEmit(inv)}
+                              disabled={!canEmit || isBusy}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                            >
+                              {isBusy ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                              <span className="sr-only">Emitir en LibreDTE</span>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleSyncStatus(inv)}
+                              disabled={!inv.libredteFolio || isBusy}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                            >
+                              <RefreshCw className={`h-4 w-4 ${isBusy ? "animate-spin" : ""}`} />
+                              <span className="sr-only">Sincronizar estado</span>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenPdf(inv)}
+                              disabled={!inv.libredteFolio || isBusy}
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                            >
+                              <FileDown className="h-4 w-4" />
+                              <span className="sr-only">Abrir PDF</span>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setInvoiceToDelete(inv)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Eliminar</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -393,18 +561,17 @@ export default function BillingPage() {
               <DialogTitle>Eliminar documento</DialogTitle>
             </div>
             <DialogDescription className="pt-2 text-sm">
-              Estás a punto de eliminar el documento{" "}
+              Estas a punto de eliminar el documento{" "}
               <span className="font-semibold">
                 {invoiceToDelete?.number} · {invoiceToDelete?.customer}
               </span>
-              . Esta acción no se puede deshacer.
+              . Esta accion no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
 
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Ten en cuenta que esto no afecta automáticamente el estado de la
-            orden asociada. Más adelante podemos conectar esta acción con la
-            reversa de pagos.
+            Si ya fue emitido en LibreDTE, deberas gestionar la anulacion o nota
+            correspondiente directamente en el flujo tributario.
           </div>
 
           <DialogFooter className="mt-4 flex justify-end gap-2">

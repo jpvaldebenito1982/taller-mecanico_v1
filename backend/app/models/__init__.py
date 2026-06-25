@@ -4,3 +4,7 @@ from app.models.customer import Customer
 from app.models.vehicle import Vehicle
 from app.models.order import Order
 from app.models.order_image import OrderImage
+from app.models.billing import Billing
+from app.models.inventory import InventoryItem
+from app.models.inventory_movement import InventoryMovement
+from app.models.order_part import OrderPart

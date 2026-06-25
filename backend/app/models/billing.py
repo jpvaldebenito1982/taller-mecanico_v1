@@ -54,6 +54,13 @@ class Billing(Base):
 
     payment_method: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
+    libredte_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    libredte_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    libredte_document_type_code: Mapped[int | None] = mapped_column(nullable=True)
+    libredte_folio: Mapped[int | None] = mapped_column(nullable=True)
+    libredte_codigo_generacion: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    libredte_pdf_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    libredte_xml_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
 

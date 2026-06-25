@@ -11,6 +11,7 @@ import {
   Trash2,
   FileText,
   Eye,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,7 +61,7 @@ type OrderApiResponse = {
   quote_code?: string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return undefined;
@@ -434,6 +435,18 @@ export default function OrdersPage() {
                           <Link href={`/dashboard/orders/${o.id}`}>
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">Ver detalle</span>
+                          </Link>
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                        >
+                          <Link href={`/dashboard/mechanic/orders/${o.id}`}>
+                            <Smartphone className="h-4 w-4" />
+                            <span className="sr-only">Modo mecanico</span>
                           </Link>
                         </Button>
 
