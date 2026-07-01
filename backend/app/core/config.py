@@ -44,5 +44,16 @@ class Settings(BaseSettings):
             if origin.strip()
         ]
 
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        if self.DATABASE_URL.startswith("postgresql://"):
+            return self.DATABASE_URL.replace(
+                "postgresql://",
+                "postgresql+psycopg://",
+                1,
+            )
+
+        return self.DATABASE_URL
+
 
 settings = Settings()
