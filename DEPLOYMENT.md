@@ -1,127 +1,96 @@
-# Despliegue en Supabase + Vercel
+# Despliegue de pruebas: Railway + Vercel
 
-Esta app tiene tres piezas en produccion:
+La alternativa más simple para este repositorio es:
 
-1. Base de datos PostgreSQL en Supabase.
-2. Backend FastAPI en un host Python, por ejemplo Render, Railway o Fly.io.
-3. Frontend Next.js en Vercel.
+- Railway: backend FastAPI y PostgreSQL.
+- Vercel: frontend Next.js.
 
-Supabase reemplaza la base de datos, pero no hospeda este backend FastAPI tal como esta escrito.
+Los dos servicios pueden desplegarse desde el repositorio de GitHub. No subas los archivos `.env`; carga sus valores en los paneles de cada plataforma.
 
-## 1. Supabase
+## 1. Publicar el backend y PostgreSQL en Railway
 
-1. Crear un proyecto en Supabase.
-2. Ir a **Project Settings > Database > Connection string**.
-3. Copiar una connection string compatible con PostgreSQL.
+1. En Railway, crea un proyecto con **Deploy from GitHub repo** y selecciona este repositorio.
+2. En la configuración del servicio del backend establece **Root Directory** en `/backend`.
+3. Agrega un servicio PostgreSQL al mismo proyecto con **New > Database > PostgreSQL**.
+4. En las variables del backend agrega una referencia a la variable de PostgreSQL:
 
-Para un backend persistente como FastAPI, usa preferentemente **Direct connection** o **Session pooler**. Evita Transaction pooler salvo que ajustes la libreria para no usar prepared statements.
+   ```env
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   ```
 
-Formato para `DATABASE_URL`:
+   Si el servicio de base de datos tiene otro nombre, reemplaza `Postgres` por ese nombre.
 
-```env
-DATABASE_URL=postgresql+psycopg://USUARIO:PASSWORD@HOST:PUERTO/postgres
-```
+5. Carga también estas variables:
 
-Ejemplo orientativo:
+   ```env
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   JWT_SECRET_KEY=una-clave-aleatoria-larga
+   JWT_ALGORITHM=HS256
+   JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
+   FRONTEND_URL=https://TU-FRONTEND.vercel.app
+   BACKEND_URL=https://TU-BACKEND.up.railway.app
+   CORS_ORIGINS=https://TU-FRONTEND.vercel.app,http://localhost:3001
+   ```
 
-```env
-DATABASE_URL=postgresql+psycopg://postgres.xxxxx:TU_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
-```
+6. Las variables `LIBREDTE_*` de `backend/.env.example` son opcionales para las pruebas que no emitan documentos tributarios.
+7. En **Settings > Networking**, genera un dominio público.
 
-La app usa el schema:
+Railway leerá `backend/railway.json`. Antes de iniciar la API ejecutará `python -m app.db.init_db`, que crea el schema `Taller_mecanico` y sus tablas si aún no existen. Después iniciará Uvicorn y comprobará `/health`.
 
-```sql
-"Taller_mecanico"
-```
-
-Antes de apuntar el backend productivo a Supabase, hay que crear las tablas en Supabase. La forma mas directa es exportar/importar la base local:
-
-```powershell
-pg_dump --schema "Taller_mecanico" --schema-only --file taller_schema.sql "postgresql://USUARIO:PASS@localhost:5432/postgres"
-psql "postgresql://USUARIO:PASS@HOST:PUERTO/postgres" --file taller_schema.sql
-```
-
-Si quieres migrar datos tambien, cambia `--schema-only` por un dump completo o usa `--data-only` despues de crear el schema.
-
-## 2. Backend FastAPI
-
-Desplegar la carpeta `backend` en un host que soporte Python.
-
-Build command:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start command:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Variables de entorno necesarias:
-
-```env
-DATABASE_URL=postgresql+psycopg://...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-JWT_SECRET_KEY=...
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-FRONTEND_URL=https://TU-FRONTEND.vercel.app
-BACKEND_URL=https://TU-BACKEND.example.com
-CORS_ORIGINS=https://TU-FRONTEND.vercel.app,http://localhost:3001
-LIBREDTE_API_BASE_URL=https://libredte.cl/api
-LIBREDTE_API_KEY=...
-LIBREDTE_HASH=...
-LIBREDTE_EMISOR_RUT=...
-LIBREDTE_USE_CERTIFICATION=true
-LIBREDTE_NORMALIZE=true
-LIBREDTE_PDF_FORMAT=general
-LIBREDTE_SEND_EMAIL=false
-LIBREDTE_DEFAULT_ITEM_NAME=Servicio taller mecanico
-LIBREDTE_DEFAULT_BOLETA_RUT=66666666-6
-```
-
-Notas:
-
-- `CORS_ORIGINS` es una lista separada por comas.
-- `BACKEND_URL` debe ser la URL publica del backend; se usa para construir URLs de imagenes subidas.
-- La carpeta `uploads` es local al servidor. En hosts con filesystem efimero, las imagenes pueden perderse al redeploy. Para produccion robusta conviene moverlas a Supabase Storage o S3.
-
-## 3. Frontend Vercel
-
-En Vercel, importar el repo y configurar:
-
-- Framework: Next.js.
-- Root Directory: `frontend`.
-- Build command: `npm run build`.
-- Output: Next.js default.
-
-Variables de entorno:
-
-```env
-NEXT_PUBLIC_API_URL=https://TU-BACKEND.example.com
-NEXTAUTH_URL=https://TU-FRONTEND.vercel.app
-NEXTAUTH_SECRET=...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-```
-
-Importante:
-
-- `NEXT_PUBLIC_API_URL` debe apuntar al backend publico, no a `localhost`.
-- En Google Cloud Console, agregar como Authorized redirect URI:
+Comprueba:
 
 ```text
+https://TU-BACKEND.up.railway.app/health
+https://TU-BACKEND.up.railway.app/docs
+```
+
+## 2. Publicar el frontend en Vercel
+
+1. En Vercel, crea un proyecto e importa el mismo repositorio.
+2. Selecciona **Next.js** y establece **Root Directory** en `frontend`.
+3. Agrega estas variables en Production y Preview:
+
+   ```env
+   NEXT_PUBLIC_API_URL=https://TU-BACKEND.up.railway.app
+   NEXTAUTH_URL=https://TU-FRONTEND.vercel.app
+   NEXTAUTH_SECRET=una-clave-aleatoria-larga-y-distinta
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ```
+
+4. Despliega y copia el dominio generado.
+5. Vuelve a Railway y actualiza `FRONTEND_URL` y `CORS_ORIGINS` con ese dominio exacto. Railway volverá a desplegar el backend.
+
+Puedes generar los secretos localmente con:
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+## 3. Configurar Google OAuth
+
+En Google Cloud Console, en el cliente OAuth usado por NextAuth, agrega:
+
+```text
+Authorized JavaScript origin:
+https://TU-FRONTEND.vercel.app
+
+Authorized redirect URI:
 https://TU-FRONTEND.vercel.app/api/auth/callback/google
 ```
 
+Conserva también las URLs de localhost si seguirás desarrollando localmente.
+
 ## 4. Prueba final
 
-1. Abrir `https://TU-BACKEND.example.com/docs`.
-2. Confirmar que aparecen rutas como `/api/customers/`, `/api/orders`, `/api/billing/`.
-3. Abrir el frontend en Vercel.
-4. Iniciar sesion.
-5. Crear o listar una orden.
-6. Abrir el modo mecanico desde una orden.
+1. Abre `/health` y `/docs` en Railway.
+2. Abre el frontend en Vercel e inicia sesión con Google.
+3. Lista clientes y vehículos.
+4. Crea una orden y confirma que aparece en el listado.
+
+## Consideraciones para producción
+
+- `app.db.init_db` sirve para el primer despliegue y cambios aditivos. Antes de evolucionar tablas existentes conviene incorporar migraciones Alembic.
+- Railway usa almacenamiento efímero para `backend/uploads`. Las imágenes pueden perderse en un redespliegue; para producción deben moverse a almacenamiento de objetos o montarse en un volumen persistente.
+- La API actual no protege sus endpoints de negocio con autenticación. El login del frontend no impide que alguien invoque directamente la URL pública del backend; agrega autorización al backend antes de manejar información real.
