@@ -24,7 +24,7 @@ class Billing(Base):
     document_type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        server_default=text("Boleta"),
+        server_default=text("'Boleta'"),
     )
 
     customer_id: Mapped[str] = mapped_column(
