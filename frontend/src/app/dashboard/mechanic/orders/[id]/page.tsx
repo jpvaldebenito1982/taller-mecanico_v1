@@ -124,7 +124,7 @@ export default function MechanicOrderPage() {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
-  const finalTranscriptRef = useRef("");
+  const dictationBaseRef = useRef("");
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -206,9 +206,11 @@ export default function MechanicOrderPage() {
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
-      let finalTranscript = finalTranscriptRef.current;
+      let finalTranscript = "";
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Mobile browsers can emit previous results again with resultIndex = 0.
+      // Rebuild the current recognition session instead of appending duplicates.
+      for (let i = 0; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
 
         if (event.results[i].isFinal) {
@@ -218,8 +220,9 @@ export default function MechanicOrderPage() {
         }
       }
 
-      finalTranscriptRef.current = finalTranscript;
-      setDescription((finalTranscript + interimTranscript).trim());
+      setDescription(
+        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim()
+      );
     };
 
     recognitionRef.current = recognition;
@@ -237,7 +240,7 @@ export default function MechanicOrderPage() {
     if (!recognitionRef.current) return;
 
     setSpeechError(null);
-    finalTranscriptRef.current = description ? `${description} ` : "";
+    dictationBaseRef.current = description ? `${description.trim()} ` : "";
 
     try {
       recognitionRef.current.start();

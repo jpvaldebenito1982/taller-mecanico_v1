@@ -145,7 +145,7 @@ export default function NewOrderPage() {
   const [speechError, setSpeechError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
-  const finalTranscriptRef = useRef("");
+  const dictationBaseRef = useRef("");
 
   const customerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const vehicleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -232,9 +232,11 @@ export default function NewOrderPage() {
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
-      let finalTranscript = finalTranscriptRef.current;
+      let finalTranscript = "";
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Mobile browsers can emit previous results again with resultIndex = 0.
+      // Rebuild the current recognition session instead of appending duplicates.
+      for (let i = 0; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
 
         if (event.results[i].isFinal) {
@@ -244,8 +246,9 @@ export default function NewOrderPage() {
         }
       }
 
-      finalTranscriptRef.current = finalTranscript;
-      setDescription((finalTranscript + interimTranscript).trim());
+      setDescription(
+        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim()
+      );
     };
 
     recognitionRef.current = recognition;
@@ -465,7 +468,7 @@ export default function NewOrderPage() {
     if (!recognitionRef.current) return;
 
     setSpeechError(null);
-    finalTranscriptRef.current = description ? `${description} ` : "";
+    dictationBaseRef.current = description ? `${description.trim()} ` : "";
 
     try {
       recognitionRef.current.start();
@@ -962,7 +965,9 @@ export default function NewOrderPage() {
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
-                finalTranscriptRef.current = e.target.value;
+                dictationBaseRef.current = e.target.value
+                  ? `${e.target.value.trim()} `
+                  : "";
               }}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
             />
