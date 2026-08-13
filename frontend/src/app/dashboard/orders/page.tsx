@@ -228,7 +228,7 @@ export default function OrdersPage() {
   const totalOrdersLabel = useMemo(() => orders.length, [orders]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden sm:space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
@@ -240,7 +240,7 @@ export default function OrdersPage() {
           </p>
         </div>
 
-        <Button asChild className="mt-2 md:mt-0">
+        <Button asChild className="mt-2 w-full md:mt-0 md:w-auto">
           <Link href="/dashboard/orders/new" className="inline-flex gap-2">
             <Plus className="h-4 w-4" />
             Nueva orden
@@ -257,12 +257,12 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
             <span className="font-medium text-slate-700 dark:text-slate-200">
               Estado:
             </span>
             <select
-              className="bg-transparent text-xs text-slate-700 focus:outline-none dark:text-slate-200"
+              className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 focus:outline-none dark:text-slate-200"
               value={statusFilter}
               onChange={(e) =>
                 setStatusFilter(e.target.value as typeof statusFilter)
@@ -278,12 +278,12 @@ export default function OrdersPage() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
             <span className="font-medium text-slate-700 dark:text-slate-200">
               Prioridad:
             </span>
             <select
-              className="bg-transparent text-xs text-slate-700 focus:outline-none dark:text-slate-200"
+              className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 focus:outline-none dark:text-slate-200"
               value={priorityFilter}
               onChange={(e) =>
                 setPriorityFilter(e.target.value as typeof priorityFilter)
@@ -321,7 +321,123 @@ export default function OrdersPage() {
           </h3>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-slate-200 dark:divide-slate-800 md:hidden">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+              Cargando órdenes...
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+              No se encontraron órdenes con los filtros actuales.
+            </div>
+          ) : (
+            orders.map((o) => (
+              <article key={o.id} className="min-w-0 space-y-4 p-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Orden de trabajo
+                    </p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-50">
+                      {o.code}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex max-w-[60%] shrink-0 items-center rounded-full px-2 py-1 text-center text-[10px] font-medium leading-tight ${getStatusClasses(
+                      o.status
+                    )}`}
+                  >
+                    {o.status}
+                  </span>
+                </div>
+
+                <div className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                  <div className="col-span-2 min-w-0">
+                    <p className="text-slate-500 dark:text-slate-400">Vehículo</p>
+                    <p className="break-words font-medium text-slate-800 dark:text-slate-100">
+                      {o.vehicle || "Sin detalle"} · {o.plate}
+                    </p>
+                  </div>
+                  <div className="col-span-2 min-w-0">
+                    <p className="text-slate-500 dark:text-slate-400">Cliente</p>
+                    <p className="break-words text-slate-800 dark:text-slate-100">
+                      {o.customer}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 dark:text-slate-400">Creación</p>
+                    <p className="text-slate-800 dark:text-slate-100">{o.createdAt}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 dark:text-slate-400">Entrega</p>
+                    <p className="text-slate-800 dark:text-slate-100">
+                      {o.promisedAt ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 dark:text-slate-400">Prioridad</p>
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${getPriorityClasses(
+                        o.priority
+                      )}`}
+                    >
+                      {o.priority}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 dark:text-slate-400">Total</p>
+                    <p className="font-medium text-slate-800 dark:text-slate-100">
+                      {formatCurrency(o.total)}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-slate-500 dark:text-slate-400">Presupuesto</p>
+                    {o.quoteId && o.quoteCode ? (
+                      <Link
+                        href={`/dashboard/quotes/${o.quoteId}/edit`}
+                        className="mt-1 inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {o.quoteCode}
+                      </Link>
+                    ) : (
+                      <p className="text-slate-500">Sin presupuesto</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <Button variant="outline" size="sm" asChild aria-label="Ver detalle">
+                    <Link href={`/dashboard/orders/${o.id}`}>
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild aria-label="Modo mecánico">
+                    <Link href={`/dashboard/mechanic/orders/${o.id}`}>
+                      <Smartphone className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild aria-label="Editar">
+                    <Link href={`/dashboard/orders/${o.id}/edit`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOrderToDelete(o)}
+                    className="text-red-600 hover:text-red-700 dark:text-red-400"
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/80">
               <tr className="text-left text-xs text-slate-500 dark:text-slate-300">
