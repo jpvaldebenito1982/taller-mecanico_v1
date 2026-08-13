@@ -1,7 +1,11 @@
+import secrets
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.services.jwt_service import create_access_token
 from app.db.session import get_db
 from app.schemas.user import UserCreate, UserUpdate, UserOut
 from app.crud.user import (
@@ -15,6 +19,44 @@ from app.crud.user import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/auth-check")
+def api_authorize_google_user(
+    email: str = Query(min_length=3, max_length=255),
+    x_auth_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """Internal allow-list check used by NextAuth during Google sign-in."""
+    if not settings.AUTH_SHARED_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="La validacion de acceso no esta configurada.",
+        )
+
+    if not x_auth_secret or not secrets.compare_digest(
+        x_auth_secret,
+        settings.AUTH_SHARED_SECRET,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credencial interna invalida.",
+        )
+
+    user = get_user_by_email(db, email.strip().lower())
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuario no autorizado.",
+        )
+
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "name": user.full_name or "",
+        "role": user.role,
+        "access_token": create_access_token(subject=str(user.id)),
+    }
 
 
 @router.get("/", response_model=list[UserOut])
