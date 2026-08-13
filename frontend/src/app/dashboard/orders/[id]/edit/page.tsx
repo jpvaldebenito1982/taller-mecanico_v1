@@ -426,10 +426,13 @@ export default function EditOrderPage() {
         formData.append("images", photo.file);
       });
 
-      const response = await fetch(`${API_URL}/api/orders/${existing.id}`, {
+      const response = await fetch(
+        `${API_URL}/api/orders/${existing.id}/with-images`,
+        {
         method: "PUT",
         body: formData,
-      });
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();

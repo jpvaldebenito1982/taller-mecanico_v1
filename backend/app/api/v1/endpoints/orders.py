@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Form, File, Uploa
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.core.config import settings
 from app.crud.order import (
     get_orders,
     get_order_by_id,
@@ -29,7 +30,8 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 UPLOAD_DIR = "uploads/orders"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-API_BASE_URL = "http://localhost:8001"
+API_BASE_URL = settings.BACKEND_URL.rstrip("/")
+MAX_IMAGE_SIZE = 12 * 1024 * 1024
 
 
 def build_vehicle_name(vehicle) -> str:
@@ -181,6 +183,104 @@ def update_existing_order(
     updated = update_order(db, order, payload)
     updated = get_order_by_id(db, updated.id)
     return serialize_order(updated)
+
+
+@router.put("/{order_id}/with-images", response_model=OrderResponse)
+async def update_order_with_images(
+    order_id: uuid.UUID,
+    created_at: date = Form(...),
+    promised_at: str = Form(""),
+    status_value: str = Form(..., alias="status"),
+    priority: str = Form(...),
+    description: str = Form(...),
+    deleted_image_ids: list[uuid.UUID] = Form(default=[]),
+    images: list[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    order = get_order_by_id(db, order_id)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Orden no encontrada",
+        )
+
+    created_files: list[str] = []
+
+    try:
+        payload = OrderUpdate(
+            created_at=created_at,
+            promised_at=date.fromisoformat(promised_at) if promised_at else None,
+            status=status_value,
+            priority=priority,
+            description=description,
+        )
+
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(order, field, value.value if hasattr(value, "value") else value)
+
+        if deleted_image_ids:
+            existing_images = (
+                db.query(OrderImage)
+                .filter(
+                    OrderImage.order_id == order.id,
+                    OrderImage.id.in_(deleted_image_ids),
+                )
+                .all()
+            )
+            for existing_image in existing_images:
+                if os.path.isfile(existing_image.file_path):
+                    os.remove(existing_image.file_path)
+                db.delete(existing_image)
+
+        for image in images:
+            if not image.content_type or not image.content_type.startswith("image/"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{image.filename or 'Archivo'} no es una imagen valida.",
+                )
+
+            extension = os.path.splitext(image.filename or "")[1]
+            safe_filename = f"{uuid.uuid4()}{extension or '.jpg'}"
+            file_path = os.path.join(UPLOAD_DIR, safe_filename)
+            size = 0
+            created_files.append(file_path)
+
+            with open(file_path, "wb") as output:
+                while chunk := await image.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > MAX_IMAGE_SIZE:
+                        raise HTTPException(
+                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            detail=f"{image.filename or 'La imagen'} supera los 12 MB.",
+                        )
+                    output.write(chunk)
+
+            db.add(
+                OrderImage(
+                    order_id=order.id,
+                    file_name=image.filename or safe_filename,
+                    file_path=file_path,
+                    content_type=image.content_type,
+                )
+            )
+
+        db.commit()
+        return serialize_order(get_order_by_id(db, order.id))
+    except HTTPException:
+        db.rollback()
+        for file_path in created_files:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        raise
+    except Exception as exc:
+        db.rollback()
+        for file_path in created_files:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"No se pudo actualizar la orden: {exc}",
+        ) from exc
 
 
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
