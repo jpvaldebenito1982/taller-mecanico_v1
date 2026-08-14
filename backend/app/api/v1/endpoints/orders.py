@@ -21,6 +21,12 @@ from app.schemas.order import (
     OrderUpdate,
     OrderResponse,
 )
+from app.services.storage_service import (
+    delete_order_image,
+    get_image_url,
+    storage_is_configured,
+    upload_order_image,
+)
 
 # AJUSTA ESTE IMPORT SEGÚN TU PROYECTO
 from app.models.order_image import OrderImage
@@ -30,7 +36,6 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 UPLOAD_DIR = "uploads/orders"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-API_BASE_URL = settings.BACKEND_URL.rstrip("/")
 MAX_IMAGE_SIZE = 12 * 1024 * 1024
 
 
@@ -53,12 +58,11 @@ def serialize_order(order) -> OrderResponse:
 
     if getattr(order, "images", None):
         for image in order.images:
-            filename = os.path.basename(image.file_path)
             images.append(
                 {
                     "id": image.id,
                     "file_name": image.file_name,
-                    "file_url": f"{API_BASE_URL}/uploads/orders/{filename}",
+                    "file_url": get_image_url(image.file_path),
                 }
             )
 
@@ -122,6 +126,7 @@ async def create_new_order(
     images: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
+    created_files: list[str] = []
     try:
         payload = OrderCreate(
             customer_id=customer_id,
@@ -137,13 +142,32 @@ async def create_new_order(
         order = create_order(db, payload)
 
         for image in images:
-            extension = os.path.splitext(image.filename or "")[1]
-            safe_filename = f"{uuid.uuid4()}{extension or '.jpg'}"
-            file_path = os.path.join(UPLOAD_DIR, safe_filename)
+            if not image.content_type or not image.content_type.startswith("image/"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{image.filename or 'Archivo'} no es una imagen valida.",
+                )
 
             content = await image.read()
-            with open(file_path, "wb") as f:
-                f.write(content)
+            if len(content) > MAX_IMAGE_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"{image.filename or 'La imagen'} supera los 12 MB.",
+                )
+
+            extension = os.path.splitext(image.filename or "")[1]
+            safe_filename = f"{uuid.uuid4()}{extension or '.jpg'}"
+            if storage_is_configured():
+                file_path = await upload_order_image(
+                    f"orders/{order.id}/{safe_filename}",
+                    content,
+                    image.content_type,
+                )
+            else:
+                file_path = os.path.join(UPLOAD_DIR, safe_filename)
+                with open(file_path, "wb") as f:
+                    f.write(content)
+            created_files.append(file_path)
 
             db.add(
                 OrderImage(
@@ -159,8 +183,21 @@ async def create_new_order(
         order = get_order_by_id(db, order.id)
         return serialize_order(order)
 
+    except HTTPException:
+        db.rollback()
+        for file_path in created_files:
+            if file_path.startswith("supabase://"):
+                await delete_order_image(file_path)
+            elif os.path.isfile(file_path):
+                os.remove(file_path)
+        raise
     except Exception as e:
         db.rollback()
+        for file_path in created_files:
+            if file_path.startswith("supabase://"):
+                await delete_order_image(file_path)
+            elif os.path.isfile(file_path):
+                os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"No se pudo crear la orden: {str(e)}",
@@ -228,7 +265,9 @@ async def update_order_with_images(
                 .all()
             )
             for existing_image in existing_images:
-                if os.path.isfile(existing_image.file_path):
+                if existing_image.file_path.startswith("supabase://"):
+                    await delete_order_image(existing_image.file_path)
+                elif os.path.isfile(existing_image.file_path):
                     os.remove(existing_image.file_path)
                 db.delete(existing_image)
 
@@ -241,19 +280,24 @@ async def update_order_with_images(
 
             extension = os.path.splitext(image.filename or "")[1]
             safe_filename = f"{uuid.uuid4()}{extension or '.jpg'}"
-            file_path = os.path.join(UPLOAD_DIR, safe_filename)
-            size = 0
-            created_files.append(file_path)
+            content = await image.read()
+            if len(content) > MAX_IMAGE_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"{image.filename or 'La imagen'} supera los 12 MB.",
+                )
 
-            with open(file_path, "wb") as output:
-                while chunk := await image.read(1024 * 1024):
-                    size += len(chunk)
-                    if size > MAX_IMAGE_SIZE:
-                        raise HTTPException(
-                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                            detail=f"{image.filename or 'La imagen'} supera los 12 MB.",
-                        )
-                    output.write(chunk)
+            if storage_is_configured():
+                file_path = await upload_order_image(
+                    f"orders/{order.id}/{safe_filename}",
+                    content,
+                    image.content_type,
+                )
+            else:
+                file_path = os.path.join(UPLOAD_DIR, safe_filename)
+                with open(file_path, "wb") as output:
+                    output.write(content)
+            created_files.append(file_path)
 
             db.add(
                 OrderImage(
@@ -269,13 +313,17 @@ async def update_order_with_images(
     except HTTPException:
         db.rollback()
         for file_path in created_files:
-            if os.path.isfile(file_path):
+            if file_path.startswith("supabase://"):
+                await delete_order_image(file_path)
+            elif os.path.isfile(file_path):
                 os.remove(file_path)
         raise
     except Exception as exc:
         db.rollback()
         for file_path in created_files:
-            if os.path.isfile(file_path):
+            if file_path.startswith("supabase://"):
+                await delete_order_image(file_path)
+            elif os.path.isfile(file_path):
                 os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

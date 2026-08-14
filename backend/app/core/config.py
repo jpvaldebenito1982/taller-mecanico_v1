@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     FRONTEND_URL: str = "http://localhost:3001"
     BACKEND_URL: str = "http://localhost:8001"
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_STORAGE_BUCKET: str = "order-images"
     CORS_ORIGINS: str = DEFAULT_CORS_ORIGINS
     LIBREDTE_API_BASE_URL: str = "https://libredte.cl/api"
     LIBREDTE_API_KEY: str | None = None

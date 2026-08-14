@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   Package,
   Printer,
-  Smartphone,
 } from "lucide-react";
 
 type OrderStatus =
@@ -553,18 +552,6 @@ export default function OrderDetailPage() {
             Imprimir OT (PDF)
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10"
-          >
-            <Link href={`/dashboard/mechanic/orders/${order.id}`}>
-              <Smartphone className="h-4 w-4" />
-              Modo mecanico
-            </Link>
-          </Button>
-
           <Button variant="outline" size="sm" asChild className="gap-2">
             <Link href={`/dashboard/orders/${order.id}/edit`}>
               <Pencil className="h-4 w-4" />
@@ -674,7 +661,7 @@ export default function OrderDetailPage() {
               </p>
             ) : (
               <>
-                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200 dark:border-slate-800">
                   <table className="min-w-full text-xs">
                     <thead className="bg-slate-50 dark:bg-slate-800/80">
                       <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">

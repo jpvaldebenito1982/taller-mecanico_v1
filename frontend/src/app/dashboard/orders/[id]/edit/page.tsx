@@ -980,7 +980,7 @@ export default function EditOrderPage() {
             </p>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+              <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
                 <table className="min-w-full text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-900/80">
                     <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">

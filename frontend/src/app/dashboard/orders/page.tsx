@@ -11,7 +11,6 @@ import {
   Trash2,
   FileText,
   Eye,
-  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -406,15 +405,10 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
                   <Button variant="outline" size="sm" asChild aria-label="Ver detalle">
                     <Link href={`/dashboard/orders/${o.id}`}>
                       <Eye className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild aria-label="Modo mecánico">
-                    <Link href={`/dashboard/mechanic/orders/${o.id}`}>
-                      <Smartphone className="h-4 w-4" />
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild aria-label="Editar">
@@ -551,18 +545,6 @@ export default function OrdersPage() {
                           <Link href={`/dashboard/orders/${o.id}`}>
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">Ver detalle</span>
-                          </Link>
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          asChild
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10"
-                        >
-                          <Link href={`/dashboard/mechanic/orders/${o.id}`}>
-                            <Smartphone className="h-4 w-4" />
-                            <span className="sr-only">Modo mecanico</span>
                           </Link>
                         </Button>
 

@@ -414,7 +414,7 @@ export default function EditQuotePage() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
             <table className="min-w-full text-xs md:text-sm">
               <thead className="bg-slate-100 dark:bg-slate-800/80">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">

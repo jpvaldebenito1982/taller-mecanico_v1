@@ -388,7 +388,7 @@ export default function InventoryPage() {
           </h3>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/80">
               <tr className="text-left text-xs text-slate-500 dark:text-slate-300">
