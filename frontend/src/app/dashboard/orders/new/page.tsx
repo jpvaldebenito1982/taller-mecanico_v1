@@ -145,6 +145,7 @@ export default function NewOrderPage() {
   const [speechError, setSpeechError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const recognitionConstructorRef = useRef<SpeechRecognitionConstructor | null>(null);
   const dictationBaseRef = useRef("");
 
   const customerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -199,66 +200,16 @@ export default function NewOrderPage() {
     }
 
     setSpeechSupported(true);
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.lang = "es-CL";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setSpeechError(null);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      setIsListening(false);
-
-      if (event.error === "not-allowed") {
-        setSpeechError("Debes permitir acceso al micrófono para usar el dictado.");
-        return;
-      }
-
-      if (event.error === "no-speech") {
-        setSpeechError("No se detectó voz. Intenta hablar más cerca del micrófono.");
-        return;
-      }
-
-      setSpeechError("No se pudo transcribir el audio.");
-    };
-
-    recognition.onresult = (event) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-
-      // Mobile browsers can emit previous results again with resultIndex = 0.
-      // Rebuild the current recognition session instead of appending duplicates.
-      for (let i = 0; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + " ";
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      setDescription(
-        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim()
-      );
-    };
-
-    recognitionRef.current = recognition;
+    recognitionConstructorRef.current = SpeechRecognitionCtor;
 
     return () => {
       try {
-        recognition.stop();
+        recognitionRef.current?.stop();
       } catch {
         //
       }
+      recognitionRef.current = null;
+      recognitionConstructorRef.current = null;
     };
   }, []);
 
@@ -465,21 +416,65 @@ export default function NewOrderPage() {
   };
 
   const handleStartDictation = () => {
-    if (!recognitionRef.current) return;
+    const SpeechRecognitionCtor = recognitionConstructorRef.current;
+    if (!SpeechRecognitionCtor) return;
 
     setSpeechError(null);
     dictationBaseRef.current = description ? `${description.trim()} ` : "";
 
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "es-CL";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onstart = () => {
+      if (recognitionRef.current !== recognition) return;
+      setIsListening(true);
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current !== recognition) return;
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+    recognition.onerror = (event) => {
+      if (recognitionRef.current !== recognition) return;
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        setSpeechError("Debes permitir acceso al micrófono para usar el dictado.");
+      } else if (event.error === "no-speech") {
+        setSpeechError("No se detectó voz. Intenta hablar más cerca del micrófono.");
+      } else {
+        setSpeechError("No se pudo transcribir el audio.");
+      }
+    };
+    recognition.onresult = (event) => {
+      if (recognitionRef.current !== recognition) return;
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalTranscript += `${transcript} `;
+        else interimTranscript += transcript;
+      }
+      setDescription(
+        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim()
+      );
+    };
+    recognitionRef.current = recognition;
+
     try {
-      recognitionRef.current.start();
+      recognition.start();
     } catch {
+      recognitionRef.current = null;
       setSpeechError("No se pudo iniciar el dictado.");
     }
   };
 
   const handleStopDictation = () => {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    setIsListening(false);
     try {
-      recognitionRef.current?.stop();
+      recognition?.stop();
     } catch {
       //
     }
