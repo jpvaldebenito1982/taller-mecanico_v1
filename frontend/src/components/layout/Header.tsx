@@ -16,10 +16,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useEffect, useState } from "react";
 
 export function Header() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const name = session?.user?.name ?? "Usuario";
   const initials = name
     .split(" ")
@@ -28,10 +30,14 @@ export function Header() {
     .slice(0, 2)
     .toUpperCase();
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm border-slate-200 dark:bg-slate-900/90 dark:border-slate-800 sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
-        <Dialog>
+        <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <DialogTrigger asChild>
             <Button
               variant="ghost"
@@ -57,6 +63,7 @@ export function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
                       active
