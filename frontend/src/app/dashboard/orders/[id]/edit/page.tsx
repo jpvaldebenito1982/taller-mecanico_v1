@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Camera,
   X,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import {
   Dialog,
@@ -128,6 +130,31 @@ type OrderPartLine = {
   unitPrice: number;
 };
 
+type SpeechRecognitionType = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onresult:
+    | ((event: {
+        resultIndex: number;
+        results: {
+          [key: number]: {
+            [key: number]: { transcript: string };
+            isFinal: boolean;
+          };
+          length: number;
+        };
+      }) => void)
+    | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionType;
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 const getStatusLabel = (status: OrderStatus) => status;
@@ -216,6 +243,11 @@ export default function EditOrderPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const dictationBaseRef = useRef("");
 
   const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
   const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([]);
@@ -225,6 +257,92 @@ export default function EditOrderPage() {
   const [isAddPartOpen, setIsAddPartOpen] = useState(false);
   const [selectedInventoryId, setSelectedInventoryId] = useState<string>("");
   const [partQuantity, setPartQuantity] = useState<string>("1");
+
+  useEffect(() => {
+    const speechWindow = window as typeof window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const SpeechRecognitionCtor =
+      speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    setSpeechSupported(true);
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "es-CL";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setSpeechError(null);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        setSpeechError("Debes permitir acceso al micrófono para usar el dictado.");
+      } else if (event.error === "no-speech") {
+        setSpeechError("No se detectó voz. Intenta hablar más cerca del micrófono.");
+      } else {
+        setSpeechError("No se pudo transcribir el audio.");
+      }
+    };
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      // Algunos navegadores móviles vuelven a emitir resultados anteriores.
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += `${transcript} `;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      const description =
+        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim();
+      setForm((current) => ({ ...current, description }));
+    };
+
+    recognitionRef.current = recognition;
+    return () => {
+      try {
+        recognition.stop();
+      } catch {
+        // Puede estar detenido al abandonar la pantalla.
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  const handleStartDictation = () => {
+    if (!recognitionRef.current) return;
+
+    setSpeechError(null);
+    dictationBaseRef.current = form.description
+      ? `${form.description.trim()} `
+      : "";
+    try {
+      recognitionRef.current.start();
+    } catch {
+      setSpeechError("No se pudo iniciar el dictado.");
+    }
+  };
+
+  const handleStopDictation = () => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // Ya estaba detenido.
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -923,18 +1041,65 @@ export default function EditOrderPage() {
           </div>
 
           <div className="space-y-1.5 md:col-span-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
-              <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              Descripción del trabajo
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+                <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                Descripción del trabajo
+              </label>
+
+              {speechSupported && (
+                <Button
+                  type="button"
+                  variant={isListening ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={isListening ? handleStopDictation : handleStartDictation}
+                  className="shrink-0 gap-2"
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="h-4 w-4" />
+                      Detener dictado
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-4 w-4" />
+                      Dictar
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
             <textarea
               value={form.description}
-              onChange={(e) => handleChange("description", e.target.value)}
+              onChange={(e) => {
+                handleChange("description", e.target.value);
+                dictationBaseRef.current = e.target.value
+                  ? `${e.target.value.trim()} `
+                  : "";
+              }}
               rows={4}
               required
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
               placeholder="Describe el problema y los trabajos a realizar."
             />
+
+            {isListening && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                Escuchando... habla para transcribir en la descripción.
+              </p>
+            )}
+
+            {!speechSupported && (
+              <p className="text-xs text-amber-600 dark:text-amber-300">
+                El dictado por voz no está disponible en este navegador.
+              </p>
+            )}
+
+            {speechError && (
+              <p className="text-xs text-red-600 dark:text-red-300">
+                {speechError}
+              </p>
+            )}
           </div>
         </div>
 
