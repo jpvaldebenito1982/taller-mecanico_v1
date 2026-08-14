@@ -58,7 +58,7 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* HERO */}
         <section className="relative w-full py-24 md:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 opacity-90 dark:opacity-60" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-800 dark:from-blue-950 dark:via-slate-950 dark:to-indigo-950" />
 
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 lg:grid lg:grid-cols-2 lg:items-center">
             <motion.div
@@ -67,19 +67,19 @@ export default function LandingPage() {
               transition={{ duration: 0.7 }}
               className="text-white space-y-6"
             >
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide backdrop-blur">
+              <span className="inline-flex items-center rounded-full border border-white/25 bg-black/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur">
                 Taller mecánico en el que puedes confiar
               </span>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight drop-shadow-lg">
                 Díaz & Díaz
                 <br />
-                <span className="text-blue-100">
+                <span className="text-white/95">
                   cuidado experto para tu vehículo
                 </span>
               </h1>
 
-              <p className="text-lg text-blue-100/90 max-w-xl">
+              <p className="max-w-xl text-lg leading-relaxed text-blue-50">
                 Mantenimiento y reparación profesional para autos y camionetas.
                 Reserva tu hora en línea y mantén tu vehículo seguro y en
                 óptimas condiciones.
@@ -95,15 +95,14 @@ export default function LandingPage() {
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white/70 text-white hover:bg-white/10"
+                  className="border border-white/70 bg-blue-950/35 font-semibold text-white shadow-sm hover:bg-white hover:text-blue-800"
                   asChild
                 >
                   <Link href="#servicios">Ver servicios</Link>
                 </Button>
               </div>
 
-              <div className="flex flex-wrap gap-6 pt-2 text-sm text-blue-100/90">
+              <div className="flex flex-wrap gap-6 pt-2 text-sm text-blue-50">
                 <div>
                   <p className="font-semibold">+10 años de experiencia</p>
                   <p>Atención honesta y transparente.</p>
