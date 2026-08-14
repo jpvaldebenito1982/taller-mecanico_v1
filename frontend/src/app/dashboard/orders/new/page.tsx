@@ -17,6 +17,7 @@ import {
   MicOff,
 } from "lucide-react";
 import Link from "next/link";
+import { collapseCumulativeTranscripts } from "@/lib/speech";
 
 type PreviewPhoto = {
   file: File;
@@ -448,15 +449,13 @@ export default function NewOrderPage() {
     };
     recognition.onresult = (event) => {
       if (recognitionRef.current !== recognition) return;
-      let finalTranscript = "";
-      let interimTranscript = "";
+      const transcripts: string[] = [];
       for (let i = 0; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += `${transcript} `;
-        else interimTranscript += transcript;
+        transcripts.push(event.results[i][0].transcript);
       }
+      const sessionTranscript = collapseCumulativeTranscripts(transcripts);
       setDescription(
-        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim()
+        `${dictationBaseRef.current}${sessionTranscript}`.trim()
       );
     };
     recognitionRef.current = recognition;

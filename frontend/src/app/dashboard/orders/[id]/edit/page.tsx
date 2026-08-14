@@ -31,6 +31,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { collapseCumulativeTranscripts } from "@/lib/speech";
 
 type OrderStatus =
   | "Abierta"
@@ -320,15 +321,12 @@ export default function EditOrderPage() {
     };
     recognition.onresult = (event) => {
       if (recognitionRef.current !== recognition) return;
-      let finalTranscript = "";
-      let interimTranscript = "";
+      const transcripts: string[] = [];
       for (let i = 0; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += `${transcript} `;
-        else interimTranscript += transcript;
+        transcripts.push(event.results[i][0].transcript);
       }
-      const description =
-        `${dictationBaseRef.current}${finalTranscript}${interimTranscript}`.trim();
+      const sessionTranscript = collapseCumulativeTranscripts(transcripts);
+      const description = `${dictationBaseRef.current}${sessionTranscript}`.trim();
       setForm((current) => ({ ...current, description }));
     };
     recognitionRef.current = recognition;
